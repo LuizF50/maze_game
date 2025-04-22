@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Labirinto do Encantador de Códigos</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #0f172a;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+        }
+
+        #game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        #game-canvas {
+            border: 2px solid #4f46e5;
+            box-shadow: 0 0 20px #4f46e5;
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            background-color: #4f46e5;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background-color: #6366f1;
+            transform: translateY(-2px);
+        }
+
+        .info {
+            margin-top: 20px;
+            background-color: rgba(79, 70, 229, 0.2);
+            padding: 10px 20px;
+            border-radius: 8px;
+            max-width: 500px;
+        }
+
+        h1 {
+            color: #4f46e5;
+            text-align: center;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+        }
+    </style>
+</head>
+
+<body>
+    <div id="game-container">
+        <h1>🧙‍♂️ Labirinto do Encantador de Códigos 💻</h1>
+        <canvas id="game-canvas"></canvas>
+        <div class="controls">
+            <button id="solve-btn">Encontrar Solução</button>
+            <button id="reset-btn">Reiniciar</button>
+            <button id="new-map-btn">Novo Labirinto</button>
+        </div>
+        <div class="info">
+            <p><strong>Como jogar:</strong> Use as setas do teclado para mover o personagem do ponto de partida (S) até
+                a saída (E).</p>
+            <p><strong>Objetivo:</strong> Encontre o caminho mais curto para escapar do labirinto!</p>
+        </div>
+    </div>
+
+    <!-- Usando uma versão específica do Kaboom via CDN -->
+    <script src="https://unpkg.com/kaboom@0.5.0/dist/kaboom.js"></script>
+    <script>
+        // Inicialização do Kaboom
+        const k = kaboom({
+            canvas: document.querySelector("#game-canvas"),
+            width: 500,
+            height: 400,
+            background: [15, 23, 42],
+            scale: 2,
+        });
+
+        // Definições de cores
+        const COLORS = {
+            wall: [30, 41, 59],
+            path: [71, 85, 105],
+            start: [16, 185, 129],
+            end: [239, 68, 68],
+            player: [79, 70, 229],
+            solution: [249, 115, 22],
+        };
+
+        // Labirintos disponíveis
+        const MAZES = [
+            [
+                ['#', '#', '#', '#', '#'],
+                ['#', 'S', '.', '.', '#'],
+                ['#', '#', '.', '#', '#'],
+                ['#', '.', '.', 'E', '#'],
+                ['#', '#', '#', '#', '#']
+            ],
+            [
+                ['#', '#', '#', '#', '#', '#', '#'],
+                ['#', 'S', '.', '.', '.', '.', '#'],
+                ['#', '#', '#', '#', '.', '#', '#'],
+                ['#', '.', '.', '.', '.', '.', '#'],
+                ['#', '.', '#', '#', '#', '.', '#'],
+                ['#', '.', '.', '.', 'E', '.', '#'],
+                ['#', '#', '#', '#', '#', '#', '#']
+            ],
+            [
+                ['#', '#', '#', '#', '#', '#', '#', '#', '#'],
+                ['#', 'S', '.', '.', '#', '.', '.', '.', '#'],
+                ['#', '#', '#', '.', '#', '.', '#', '.', '#'],
+                ['#', '.', '.', '.', '.', '.', '#', '.', '#'],
+                ['#', '.', '#', '#', '#', '#', '#', '.', '#'],
+                ['#', '.', '.', '.', '.', '.', '.', '.', '#'],
+                ['#', '#', '#', '#', '#', '.', '#', '#', '#'],
+                ['#', 'E', '.', '.', '.', '.', '.', '.', '#'],
+                ['#', '#', '#', '#', '#', '#', '#', '#', '#']
+            ]
+        ];
+
+        // Estado do jogo
+        let currentMaze = 0;
+        let maze = MAZES[currentMaze];
+        let startPos = null;
+        let endPos = null;
+        let playerPos = null;
+        let solution = null;
+        let showingSolution = false;
+        let solutionIndex = 0;
+        let cellSize = 40;
+
+        // Inicializar o jogo
+        function initGame() {
+            showingSolution = false;
+            solution = null;
+            solutionIndex = 0;
+
+            // Encontrar posições iniciais
+            for (let y = 0; y < maze.length; y++) {
+                for (let x = 0; x < maze[y].length; x++) {
+                    if (maze[y][x] === 'S') {
+                        startPos = { x, y };
+                        playerPos = { x, y };
+                    } else if (maze[y][x] === 'E') {
+                        endPos = { x, y };
+                    }
+                }
+            }
+        }
+
+        // Função para desenhar diretamente no canvas
+        // Usando funções básicas da API Canvas para evitar dependências específicas do Kaboom
+        function drawGame() {
+            const canvas = document.getElementById("game-canvas");
+            const ctx = canvas.getContext("2d");
+
+            // Limpar o canvas
+            ctx.fillStyle = `rgb(${COLORS.background})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Desenhar o labirinto
+            for (let y = 0; y < maze.length; y++) {
+                for (let x = 0; x < maze[y].length; x++) {
+                    const cell = maze[y][x];
+                    const xPos = x * cellSize;
+                    const yPos = y * cellSize;
+
+                    if (cell === '#') {
+                        ctx.fillStyle = `rgb(${COLORS.wall})`;
+                        ctx.fillRect(xPos, yPos, cellSize, cellSize);
+                    } else if (cell === '.') {
+                        ctx.fillStyle = `rgb(${COLORS.path})`;
+                        ctx.fillRect(xPos, yPos, cellSize, cellSize);
+                    } else if (cell === 'S') {
+                        ctx.fillStyle = `rgb(${COLORS.start})`;
+                        ctx.fillRect(xPos, yPos, cellSize, cellSize);
+                    } else if (cell === 'E') {
+                        ctx.fillStyle = `rgb(${COLORS.end})`;
+                        ctx.fillRect(xPos, yPos, cellSize, cellSize);
+                    }
+                }
+            }
+
+            // Desenhar a solução
+            if (solution && showingSolution) {
+                for (let i = 0; i <= solutionIndex && i < solution.length; i++) {
+                    const { x, y } = solution[i];
+                    const xPos = x * cellSize + cellSize / 2;
+                    const yPos = y * cellSize + cellSize / 2;
+
+                    ctx.fillStyle = `rgb(${COLORS.solution})`;
+                    ctx.beginPath();
+                    ctx.arc(xPos, yPos, cellSize / 6, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Desenhar o jogador
+            const xPos = playerPos.x * cellSize + cellSize / 2;
+            const yPos = playerPos.y * cellSize + cellSize / 2;
+
+            ctx.fillStyle = `rgb(${COLORS.player})`;
+            ctx.beginPath();
+            ctx.arc(xPos, yPos, cellSize / 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Desenhar mensagem de vitória
+            if (playerPos.x === endPos.x && playerPos.y === endPos.y) {
+                ctx.fillStyle = "rgb(74, 222, 128)";
+                ctx.font = "24px Arial";
+                ctx.textAlign = "center";
+                ctx.fillText("PARABÉNS!", canvas.width / 2, 20);
+            }
+        }
+
+        // Algoritmo BFS para encontrar o caminho mais curto
+        function findShortestPath() {
+            const queue = [{ pos: startPos, path: [startPos] }];
+            const visited = new Set();
+            visited.add(`${startPos.x},${startPos.y}`);
+
+            while (queue.length > 0) {
+                const { pos, path } = queue.shift();
+
+                if (pos.x === endPos.x && pos.y === endPos.y) {
+                    return path;
+                }
+
+                // Movimentos possíveis: cima, baixo, esquerda, direita
+                const directions = [
+                    { x: 0, y: -1 }, // cima
+                    { x: 0, y: 1 },  // baixo
+                    { x: -1, y: 0 }, // esquerda
+                    { x: 1, y: 0 },  // direita
+                ];
+
+                for (const dir of directions) {
+                    const newX = pos.x + dir.x;
+                    const newY = pos.y + dir.y;
+                    const newPos = { x: newX, y: newY };
+                    const key = `${newX},${newY}`;
+
+                    // Verificar se é um movimento válido
+                    if (
+                        newY >= 0 && newY < maze.length &&
+                        newX >= 0 && newX < maze[newY].length &&
+                        (maze[newY][newX] === '.' || maze[newY][newX] === 'E') &&
+                        !visited.has(key)
+                    ) {
+                        visited.add(key);
+                        queue.push({
+                            pos: newPos,
+                            path: [...path, newPos],
+                        });
+                    }
+                }
+            }
+
+            return null; // Não há caminho
+        }
+
+        // Loop de animação
+        function gameLoop() {
+            // Animar solução
+            if (showingSolution && solutionIndex < solution.length - 1) {
+                solutionIndex += 0.05;
+                if (solutionIndex >= solution.length - 1) {
+                    solutionIndex = solution.length - 1;
+                }
+                playerPos = { ...solution[Math.floor(solutionIndex)] };
+            }
+
+            // Desenhar o jogo
+            drawGame();
+
+            // Continuar o loop
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Controles do teclado
+        document.addEventListener("keydown", (e) => {
+            if (showingSolution) return;
+
+            switch (e.key) {
+                case "ArrowUp":
+                    const newYUp = playerPos.y - 1;
+                    if (newYUp >= 0 && (maze[newYUp][playerPos.x] === '.' || maze[newYUp][playerPos.x] === 'E')) {
+                        playerPos.y = newYUp;
+                    }
+                    break;
+                case "ArrowDown":
+                    const newYDown = playerPos.y + 1;
+                    if (newYDown < maze.length && (maze[newYDown][playerPos.x] === '.' || maze[newYDown][playerPos.x] === 'E')) {
+                        playerPos.y = newYDown;
+                    }
+                    break;
+                case "ArrowLeft":
+                    const newXLeft = playerPos.x - 1;
+                    if (newXLeft >= 0 && (maze[playerPos.y][newXLeft] === '.' || maze[playerPos.y][newXLeft] === 'E')) {
+                        playerPos.x = newXLeft;
+                    }
+                    break;
+                case "ArrowRight":
+                    const newXRight = playerPos.x + 1;
+                    if (newXRight < maze[playerPos.y].length && (maze[playerPos.y][newXRight] === '.' || maze[playerPos.y][newXRight] === 'E')) {
+                        playerPos.x = newXRight;
+                    }
+                    break;
+            }
+        });
+
+        // Botões de interface
+        document.getElementById("solve-btn").addEventListener("click", () => {
+            solution = findShortestPath();
+            showingSolution = true;
+            solutionIndex = 0;
+        });
+
+        document.getElementById("reset-btn").addEventListener("click", () => {
+            playerPos = { ...startPos };
+            showingSolution = false;
+            solutionIndex = 0;
+        });
+
+        document.getElementById("new-map-btn").addEventListener("click", () => {
+            currentMaze = (currentMaze + 1) % MAZES.length;
+            maze = MAZES[currentMaze];
+            initGame();
+        });
+
+        // Iniciar o jogo
+        document.addEventListener("DOMContentLoaded", () => {
+            // Definir o tamanho do canvas
+            const canvas = document.getElementById("game-canvas");
+            canvas.width = 500;
+            canvas.height = 400;
+
+            // Inicializar e começar o jogo
+            initGame();
+            gameLoop();
+
+            // Cores de fundo
+            COLORS.background = [15, 23, 42];
+        });
+    </script>
+</body>
+
+</html>

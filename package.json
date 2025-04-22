@@ -1,0 +1,25 @@
+{
+  "name": "labirinto-encantador",
+  "version": "1.0.0",
+  "description": "Um jogo de labirinto interativo usando Kaboom.js",
+  "main": "main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "jogo",
+    "labirinto",
+    "kaboom",
+    "javascript"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "kaboom": "^2000.2.10"
+  },
+  "devDependencies": {
+    "vite": "^4.4.9"
+  }
+}
